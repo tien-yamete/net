@@ -9,6 +9,8 @@ namespace WpfApp5
 {
     public partial class MainWindow : Window
     {
+        //Scaffold-DbContext "Server=.;Database=QLBH;Integrated Security=True;" Microsoft.EntityFrameworkCore.SqlServer -OutputDir Models
+
         private QlbhContext db = new QlbhContext();
 
         public MainWindow()
