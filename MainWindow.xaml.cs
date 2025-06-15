@@ -1,68 +1,105 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using WpfApp5.Models;
+using static System.Runtime.CompilerServices.RuntimeHelpers;
 
-namespace WpfApp4
+namespace WpfApp5
 {
     public partial class MainWindow : Window
     {
-        private List<BenhNhan> danhSachBenhNhan = new List<BenhNhan>();
+        private QlbhContext db = new QlbhContext();
 
         public MainWindow()
         {
             InitializeComponent();
-            dgBenhNhan.ItemsSource = danhSachBenhNhan;
         }
 
-        private void btnNhap_Click(object sender, RoutedEventArgs e)
+        private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(txtMaBN.Text) || string.IsNullOrWhiteSpace(txtHoTen.Text) || dpNgayVao.SelectedDate == null)
+            KhachHangCombo.ItemsSource = db.KhachHangs.ToList();
+            KhachHangCombo.DisplayMemberPath = "HoTen";
+            KhachHangCombo.SelectedValuePath = "MaKh";
+
+            bangData.ItemsSource = db.DonHangs
+                .OrderByDescending(d => d.MaDh)
+                .ToList();
+        }
+
+        private void bangData_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var selected = bangData.SelectedItem;
+            if (selected == null) return;
+
+        }
+
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
+            string maDh = MaDHText.Text.Trim();
+            if (db.DonHangs.Any(d => d.MaDh == maDh))
             {
-                MessageBox.Show("Tất cả các trường đều phải có dữ liệu.");
-                return;
-            }
-            if (dpNgayVao.SelectedDate > DateTime.Now)
-            {
-                MessageBox.Show("Ngày vào viện không được lớn hơn ngày hiện tại.");
+                MessageBox.Show("Mã đơn hàng đã tồn tại!");
                 return;
             }
 
-            var bn = new BenhNhan
+            try
             {
-                MaBN = txtMaBN.Text,
-                HoTen = txtHoTen.Text,
-                NgayVao = dpNgayVao.SelectedDate.Value,
-                LoaiBN = (cbLoaiBN.SelectedItem as ComboBoxItem)?.Content.ToString()
-            };
+                var donHang = new DonHang
+                {
+                    MaDh = maDh,
+                    NgayDat = DatePick.SelectedDate,
+                    TongTien = decimal.Parse(TienText.Text),
+                    MaKh = KhachHangCombo.SelectedValue.ToString()
+                };
 
-            danhSachBenhNhan.Add(bn);
-            dgBenhNhan.Items.Refresh();
+                db.DonHangs.Add(donHang);
+                db.SaveChanges();
+
+                bangData.ItemsSource = db.DonHangs
+                .OrderByDescending(d => d.MaDh)
+                .ToList();
+            }
+            catch
+            {
+                MessageBox.Show("Không thêm được đơn hàng!");
+            }
         }
 
         private void btnThongKe_Click(object sender, RoutedEventArgs e)
         {
-            var dsNgoaiTru = danhSachBenhNhan.FindAll(bn => bn.LoaiBN == "Ngoại trú");
-            Window thongKeWindow = new Window
-            {
-                Title = "Danh sách Ngoại trú",
-                Width = 400,
-                Height = 300,
-                Content = new DataGrid
-                {
-                    ItemsSource = dsNgoaiTru,
-                    AutoGenerateColumns = true
-                }
-            };
-            thongKeWindow.ShowDialog();
+            Window1 stats = new Window1();
+            stats.ShowDialog();
         }
-    }
-
-    public class BenhNhan
-    {
-        public string MaBN { get; set; }
-        public string HoTen { get; set; }
-        public DateTime NgayVao { get; set; }
-        public string LoaiBN { get; set; }
+        private void bangSelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            DonHang donHang = (DonHang)bangData.SelectedItem;
+            if (donHang != null)
+            {
+                MaDHText.Text = donHang.MaDh;
+                DatePick.SelectedDate = donHang.NgayDat;
+                TienText.Text = donHang.TongTien.ToString();
+                KhachHangCombo.SelectedValue = donHang.MaKh;
+            }
+        }
+        private void btnEdit_Click(object sender, RoutedEventArgs e)
+        {
+            DonHang? donHang = db.DonHangs.Find(MaDHText.Text);
+            if (donHang != null)
+            {
+                donHang.MaDh = MaDHText.Text;
+                donHang.NgayDat = DatePick.SelectedDate;
+                donHang.TongTien = Decimal.Parse(TienText.Text);
+            };
+            try
+            {
+                db.SaveChanges();
+                bangData.ItemsSource = db.DonHangs.ToList();
+            }
+            catch
+            {
+                MessageBox.Show("Không sửa được nhân viên");
+            }
+        }
     }
 }
